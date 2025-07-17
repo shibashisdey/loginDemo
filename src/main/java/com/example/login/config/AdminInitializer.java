@@ -23,12 +23,16 @@ public class AdminInitializer implements CommandLineRunner {
         String adminEmail = "admin@example.com"; // Set your admin email here
         if (userRepository.findByEmail(adminEmail).isEmpty()) {
             User adminUser = new User();
+            adminUser.setName("Admin");  // <-- Add this, mandatory field
             adminUser.setEmail(adminEmail);
             adminUser.setPassword(passwordEncoder.encode("adminpassword")); // Change to a strong password
             adminUser.setRoles(Set.of("ROLE_ADMIN"));
             adminUser.setEnabled(true);
+            // You can also set other optional fields like gender, phone, dob, height if needed
+
             userRepository.save(adminUser);
             System.out.println("Default admin user created: " + adminEmail);
         }
     }
 }
+

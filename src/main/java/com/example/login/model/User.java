@@ -3,6 +3,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
@@ -33,7 +34,13 @@ public class User {
     private Double height;
 
     private boolean enabled=false;
+@Column
+    private LocalDateTime lastProfileUpdate;
 
+    public boolean canUpdateProfile() {
+        return lastProfileUpdate == null
+                || lastProfileUpdate.isBefore(LocalDateTime.now().minusMonths(1));
+    }
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))

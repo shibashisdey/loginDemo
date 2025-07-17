@@ -64,6 +64,8 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        // ✅ Log the registration event
+        auditLogService.log(request.getEmail(), "REGISTER", "User registered");
 
         String token = UUID.randomUUID().toString();
         VerificationToken verificationToken = VerificationToken.builder()
@@ -106,7 +108,8 @@ public class AuthService {
         // ✅ Find the user
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
+        // ✅ Log login
+        auditLogService.log(request.getEmail(), "LOGIN", "User logged in successfully");
         // ✅ Map roles to authorities
         Collection<GrantedAuthority> authorities = user.getRoles().stream()
                 .map(SimpleGrantedAuthority::new)
@@ -157,11 +160,20 @@ public class AuthService {
     public ResponseEntity<String> logout(String refreshToken) {
         Optional<RefreshToken> tokenOpt = refreshTokenRepository.findByToken(refreshToken);
         if (tokenOpt.isPresent()) {
+            User user = tokenOpt.get().getUser();
+
+            // ✅ Log logout event
+            auditLogService.log(user.getEmail(), "LOGOUT", "User logged out successfully");
+
             refreshTokenRepository.delete(tokenOpt.get());
             return ResponseEntity.ok("Logged out successfully");
         } else {
             return ResponseEntity.badRequest().body("Invalid refresh token");
         }
+
     }
+
+    //injecting audit logs
+    private final AuditLogService auditLogService;
 
 }
