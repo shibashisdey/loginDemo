@@ -2,10 +2,13 @@ package com.example.login.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 
 @Component
 public class JwtUtil {
@@ -16,9 +19,18 @@ public class JwtUtil {
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
     // Generate token
-    public String generateToken(String email) {
+//    public String generateToken(String email) {
+//        return Jwts.builder()
+//                .setSubject(email)
+//                .setIssuedAt(new Date())
+//                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+//                .signWith(key, SignatureAlgorithm.HS256)
+//                .compact();
+//    }
+    public String generateToken(String email, Collection<? extends GrantedAuthority> roles) {
         return Jwts.builder()
                 .setSubject(email)
+                .claim("roles", roles.stream().map(GrantedAuthority::getAuthority).toList())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -46,5 +58,14 @@ public class JwtUtil {
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
+    }
+    public List<String> extractRoles(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.get("roles", List.class);
     }
 }

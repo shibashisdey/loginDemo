@@ -2,6 +2,7 @@ package com.example.login.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.Set;
 
 @Entity
@@ -15,12 +16,23 @@ public class User {
 @Id
 @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long Id;
+@Column(nullable = false)
+    private String name;
 @Column(nullable = false, unique = true)
     private String email;
 @Column(nullable = false)
     private String password;
+@Column
+    private String gender;
 
-private boolean enabled=false;
+@Column
+    private String phone;
+@Column
+    private LocalDate dob;  // Use java.time.LocalDate for date of birth
+@Column
+    private Double height;
+
+    private boolean enabled=false;
 
 
     @ElementCollection(fetch = FetchType.EAGER)

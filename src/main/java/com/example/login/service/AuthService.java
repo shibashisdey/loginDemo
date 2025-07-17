@@ -1,26 +1,34 @@
 package com.example.login.service;
 
-import com.example.login.dto.LoginRequest;
-import com.example.login.dto.RegisterRequest;
-import com.example.login.model.User;
-import com.example.login.model.VerificationToken;
-import com.example.login.repo.UserRepository;
-import com.example.login.repo.VerificationTokenRepository;
+import com.example.login.dto.*;
+import com.example.login.model.*;
+import com.example.login.repo.*;
 import com.example.login.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final Set<String> ADMIN_EMAILS = Set.of(
+            "admin1@example.com",
+            "admin2@example.com"
+    );
 
     private final UserRepository userRepository;
     private final VerificationTokenRepository tokenRepository;
@@ -28,16 +36,30 @@ public class AuthService {
     private final AuthenticationManager authManager;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
+    // ✅ Register User
     public ResponseEntity<String> register(RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Email already registered");
         }
 
+        Set<String> roles = new HashSet<>();
+        if (ADMIN_EMAILS.contains(request.getEmail().toLowerCase())) {
+            roles.add("ROLE_ADMIN");
+        } else {
+            roles.add("ROLE_USER");
+        }
+
         User user = User.builder()
+                .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .roles(Collections.singleton("ROLE_USER"))
+                .gender(request.getGender())
+                .phone(request.getPhone())
+                .dob(LocalDate.parse(request.getDob()))
+                .height(request.getHeight())
+                .roles(roles)
                 .enabled(false)
                 .build();
 
@@ -52,12 +74,12 @@ public class AuthService {
 
         tokenRepository.save(verificationToken);
 
-        // ✅ Send verification email
         emailService.sendVerificationEmail(user.getEmail(), token);
 
         return ResponseEntity.ok("User registered. Check your email to verify.");
     }
 
+    // ✅ Verify Email
     public ResponseEntity<String> verifyEmail(String token) {
         VerificationToken verificationToken = tokenRepository.findByToken(token)
                 .orElse(null);
@@ -74,13 +96,72 @@ public class AuthService {
         return ResponseEntity.ok("Email verified. You can now log in.");
     }
 
-    public ResponseEntity<String> login(LoginRequest request) {
+    // ✅ Login User
+    public ResponseEntity<?> login(LoginRequest request) {
         authManager.authenticate(new UsernamePasswordAuthenticationToken(
                 request.getEmail(),
                 request.getPassword()
         ));
 
-        String token = jwtUtil.generateToken(request.getEmail());
-        return ResponseEntity.ok(token);
+        // ✅ Find the user
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // ✅ Map roles to authorities
+        Collection<GrantedAuthority> authorities = user.getRoles().stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+
+        // ✅ Generate JWT with roles
+        String accessToken = jwtUtil.generateToken(request.getEmail(), authorities);
+
+        // ✅ Delete old refresh token
+        refreshTokenRepository.deleteByUser(user);
+
+        // ✅ Create new refresh token
+        String refreshTokenString = UUID.randomUUID().toString();
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken(refreshTokenString);
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(Instant.now().plus(Duration.ofDays(7))); // 7 days
+
+        refreshTokenRepository.save(refreshToken);
+
+        JwtResponse response = new JwtResponse(accessToken, refreshTokenString);
+        return ResponseEntity.ok(response);
     }
+
+    // ✅ Refresh Token
+    public ResponseEntity<?> refreshToken(TokenRefreshRequest request) {
+        String requestRefreshToken = request.getRefreshToken();
+
+        return refreshTokenRepository.findByToken(requestRefreshToken)
+                .map(refreshToken -> {
+                    if (refreshToken.isExpired()) {
+                        refreshTokenRepository.delete(refreshToken);
+                        return ResponseEntity.badRequest().body("Refresh token expired. Please login again.");
+                    }
+                    User user = refreshToken.getUser();
+
+                    // ✅ Map roles again for refreshed token
+                    Collection<GrantedAuthority> authorities = user.getRoles().stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
+
+                    String newAccessToken = jwtUtil.generateToken(user.getEmail(), authorities);
+
+                    return ResponseEntity.ok(new JwtResponse(newAccessToken, requestRefreshToken));
+                })
+                .orElseGet(() -> ResponseEntity.badRequest().body("Invalid refresh token."));
+    }
+    public ResponseEntity<String> logout(String refreshToken) {
+        Optional<RefreshToken> tokenOpt = refreshTokenRepository.findByToken(refreshToken);
+        if (tokenOpt.isPresent()) {
+            refreshTokenRepository.delete(tokenOpt.get());
+            return ResponseEntity.ok("Logged out successfully");
+        } else {
+            return ResponseEntity.badRequest().body("Invalid refresh token");
+        }
+    }
+
 }
