@@ -39,6 +39,7 @@ public class AuthService {
     private final EmailService emailService;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtBlacklistService jwtBlacklistService;
+    private final AuditLogService auditLogService;
 
     // ✅ Register User
     public ResponseEntity<String> register(RegisterRequest request) {
@@ -75,6 +76,7 @@ public class AuthService {
                 .token(token)
                 .user(user)
                 .expiryDate(LocalDateTime.now().plusMinutes(15))
+                .sentAt(LocalDateTime.now())
                 .build();
 
         tokenRepository.save(verificationToken);
@@ -182,7 +184,49 @@ public class AuthService {
 
     }
 
-    //injecting audit logs
-    private final AuditLogService auditLogService;
+    public ResponseEntity<String> resendVerificationEmail(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found");
+        }
+
+        User user = userOpt.get();
+        if (user.isEnabled()) {
+            return ResponseEntity.badRequest().body("Account already verified");
+        }
+
+        Optional<VerificationToken> tokenOpt = tokenRepository.findByUser(user);
+        VerificationToken verificationToken;
+
+        if (tokenOpt.isPresent()) {
+            verificationToken = tokenOpt.get();
+
+            if (verificationToken.getSentAt() != null &&
+                    verificationToken.getSentAt().isAfter(LocalDateTime.now().minusMinutes(5))) {
+                return ResponseEntity.badRequest()
+                        .body("Verification email already sent. Please wait before resending.");
+            }
+
+            // Update expiry and sentAt
+            verificationToken.setExpiryDate(LocalDateTime.now().plusMinutes(15));
+            verificationToken.setSentAt(LocalDateTime.now());
+        } else {
+            // create new token if not present
+            String token = UUID.randomUUID().toString();
+            verificationToken = VerificationToken.builder()
+                    .token(token)
+                    .user(user)
+                    .expiryDate(LocalDateTime.now().plusMinutes(15))
+                    .sentAt(LocalDateTime.now())
+                    .build();
+        }
+        tokenRepository.save(verificationToken);
+
+        emailService.sendVerificationEmail(user.getEmail(), verificationToken.getToken());
+
+        return ResponseEntity.ok("Verification email resent. Please check your inbox.");
+    }
+
+
 
 }
