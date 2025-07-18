@@ -35,10 +35,18 @@ public class AuthController {
     public ResponseEntity<?> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
         return authService.refreshToken(request);
     }
+//    @PostMapping("/logout")
+//    public ResponseEntity<String> logout(@RequestBody TokenRefreshRequest request) {
+//        return authService.logout(request.getRefreshToken());
+//    }
+
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestBody TokenRefreshRequest request) {
-        return authService.logout(request.getRefreshToken());
+    public ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader,
+                                         @RequestBody TokenRefreshRequest request) {
+        String accessToken = authHeader.replace("Bearer ", "").trim();
+        return authService.logout(request.getRefreshToken(), accessToken);
     }
+
 
 
 }

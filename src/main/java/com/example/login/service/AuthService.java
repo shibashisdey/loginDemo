@@ -3,6 +3,7 @@ package com.example.login.service;
 import com.example.login.dto.*;
 import com.example.login.model.*;
 import com.example.login.repo.*;
+import com.example.login.security.JwtBlacklistService;
 import com.example.login.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +38,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtBlacklistService jwtBlacklistService;
 
     // ✅ Register User
     public ResponseEntity<String> register(RegisterRequest request) {
@@ -50,6 +52,7 @@ public class AuthService {
         } else {
             roles.add("ROLE_USER");
         }
+        System.out.println("Registering user with roles: " + roles);
 
         User user = User.builder()
                 .name(request.getName())
@@ -115,6 +118,8 @@ public class AuthService {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
+        System.out.println("Generating JWT for user: " + request.getEmail() + ", authorities: " + authorities);
+
         // ✅ Generate JWT with roles
         String accessToken = jwtUtil.generateToken(request.getEmail(), authorities);
 
@@ -157,15 +162,19 @@ public class AuthService {
                 })
                 .orElseGet(() -> ResponseEntity.badRequest().body("Invalid refresh token."));
     }
-    public ResponseEntity<String> logout(String refreshToken) {
+    public ResponseEntity<String> logout(String refreshToken,String accessToken) {
         Optional<RefreshToken> tokenOpt = refreshTokenRepository.findByToken(refreshToken);
         if (tokenOpt.isPresent()) {
             User user = tokenOpt.get().getUser();
 
             // ✅ Log logout event
             auditLogService.log(user.getEmail(), "LOGOUT", "User logged out successfully");
-
+            // ✅ Invalidate refresh token
             refreshTokenRepository.delete(tokenOpt.get());
+
+            // ✅ Extract expiration and blacklist the token
+            Date expiryDate = jwtUtil.extractExpiration(accessToken);
+            jwtBlacklistService.blacklistToken(accessToken, expiryDate.toInstant());
             return ResponseEntity.ok("Logged out successfully");
         } else {
             return ResponseEntity.badRequest().body("Invalid refresh token");

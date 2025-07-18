@@ -3,6 +3,7 @@ package com.example.login.service;
 import com.example.login.dto.*;
 import com.example.login.model.*;
 import com.example.login.repo.*;
+import com.example.login.security.JwtBlacklistService;
 import com.example.login.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -31,6 +33,7 @@ public class AuthServiceTest {
     @Mock private EmailService emailService;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private AuditLogService auditLogService;
+    @Mock private JwtBlacklistService jwtBlacklistService;
 
     @InjectMocks
     private AuthService authService;
@@ -102,16 +105,25 @@ public class AuthServiceTest {
         token.setToken("refresh-token-123");
         token.setUser(user);
 
+        String accessToken = "access-token-abc";
+
         when(refreshTokenRepository.findByToken("refresh-token-123")).thenReturn(Optional.of(token));
 
-        ResponseEntity<String> response = authService.logout("refresh-token-123");
+        // Mock jwtUtil.extractExpiration to return some Date in the future
+        Date expiryDate = Date.from(Instant.now().plusSeconds(3600)); // 1 hour later
+        when(jwtUtil.extractExpiration(accessToken)).thenReturn(expiryDate);
+
+        // Call logout with both tokens
+        ResponseEntity<String> response = authService.logout("refresh-token-123", accessToken);
 
         assertEquals(200, response.getStatusCodeValue());
         assertEquals("Logged out successfully", response.getBody());
 
         verify(refreshTokenRepository).delete(token);
         verify(auditLogService).log(eq("johndoe@example.com"), eq("LOGOUT"), anyString());
+        verify(jwtBlacklistService).blacklistToken(accessToken, expiryDate.toInstant());
     }
+
 
 
 }

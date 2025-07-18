@@ -78,15 +78,21 @@ public class AuthControllerTest {
 
     @Test
     void testLogout() throws Exception {
-        TokenRefreshRequest request = new TokenRefreshRequest("refreshToken123");
+        String refreshToken = "refreshToken123";
+        String accessToken = "accessToken456";  // Mocked access token
 
-        Mockito.when(authService.logout("refreshToken123"))
+        TokenRefreshRequest request = new TokenRefreshRequest(refreshToken);
+
+        // Mock the service method to expect both tokens
+        Mockito.when(authService.logout(refreshToken, accessToken))
                 .thenReturn(ResponseEntity.ok("Logged out successfully"));
 
         mockMvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + accessToken)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Logged out successfully"));
     }
+
 }

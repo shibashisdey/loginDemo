@@ -24,6 +24,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final JwtBlacklistService jwtBlacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -46,6 +47,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
+
+        // 🚫 Check if token is blacklisted
+        if (jwtBlacklistService.isTokenBlacklisted(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token has been logged out");
+            return;
+        }
+
         String email = jwtUtil.extractUsername(token);
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -54,6 +63,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (jwtUtil.isTokenValid(token)) {
                 // ✅ Extract roles from token
                 List<String> roles = jwtUtil.extractRoles(token);
+                // Debug log - print roles extracted from JWT
+                System.out.println("JWT roles extracted: " + roles);
                 var authorities = roles.stream()
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());

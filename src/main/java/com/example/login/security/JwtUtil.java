@@ -68,4 +68,14 @@ public class JwtUtil {
 
         return claims.get("roles", List.class);
     }
+    // Extract expiration date from JWT token
+    public Date extractExpiration(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration();
+    }
+
 }
