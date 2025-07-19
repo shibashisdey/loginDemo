@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
 
     private final AuthService authService;
@@ -21,14 +22,14 @@ public class AuthController {
         return authService.register(request);
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<String> verify(@Valid @RequestParam String token) {
-        return authService.verifyEmail(token);
-    }
-    @PostMapping("/resend-verification")
-    public ResponseEntity<String> resendVerificationEmail(@RequestParam String email) {
-        return authService.resendVerificationEmail(email);
-    }
+//    @GetMapping("/verify")
+//    public ResponseEntity<String> verify(@Valid @RequestParam String token) {
+//        return authService.verifyEmail(token);
+//    }
+//    @PostMapping("/resend-verification")
+//    public ResponseEntity<String> resendVerificationEmail(@RequestParam String email) {
+//        return authService.resendVerificationEmail(email);
+//    }
 
 
     @PostMapping("/login")

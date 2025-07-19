@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Email Verification</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #74ebd5, #ACB6E5);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+
+    .card {
+      background-color: #fff;
+      padding: 40px 50px;
+      border-radius: 15px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      text-align: center;
+      width: 100%;
+      max-width: 480px;
+      animation: fadeIn 0.7s ease-in-out;
+    }
+
+    .icon {
+      font-size: 60px;
+      margin-bottom: 20px;
+    }
+
+    .success .icon {
+      color: #4CAF50;
+      animation: bounceIn 0.6s ease;
+    }
+
+    .failure .icon {
+      color: #f44336;
+      animation: shake 0.5s ease;
+    }
+
+    .typewriter {
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      border-right: 3px solid rgba(0, 0, 0, 0.7);
+      width: 0;
+      animation: typing 2.5s steps(40, end), blink 0.7s step-end infinite;
+      margin: 0 auto;
+      display: inline-block;
+    }
+
+    .subtext {
+      font-size: 14px;
+      color: #666;
+      margin-top: 25px;
+    }
+
+    /* Animations */
+    @keyframes typing {
+      from { width: 0 }
+      to { width: 100% }
+    }
+
+    @keyframes blink {
+      50% { border-color: transparent; }
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+<div class="card" th:classappend="${success} ? 'success' : 'failure'">
+  <div class="icon" th:text="${success} ? '✔' : '✖'">✔</div>
+  <!-- Typing effect for full message -->
+  <div class="typewriter" th:text="${message}">Your message appears here...</div>
+  <div class="subtext">This window will close automatically in 4 seconds.</div>
+</div>
+
+<script>
+  setTimeout(function () {
+    window.close();
+  }, 4000);
+</script>
+</body>
+</html>

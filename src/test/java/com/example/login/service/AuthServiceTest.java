@@ -64,9 +64,15 @@ public class AuthServiceTest {
 
         verify(userRepository, times(1)).save(any(User.class));
         verify(tokenRepository, times(1)).save(any(VerificationToken.class));
-        verify(emailService, times(1)).sendVerificationEmail(eq("johndoe@example.com"), anyString());
-        verify(auditLogService, times(1)).log(eq("johndoe@example.com"), eq("REGISTER"), anyString());
+
+        // Updated to match new method signature
+        verify(emailService, times(1))
+                .sendVerificationEmail(eq("johndoe@example.com"), eq("John Doe"), anyString());
+
+        verify(auditLogService, times(1))
+                .log(eq("johndoe@example.com"), eq("REGISTER"), anyString());
     }
+
     @Test
     void testLogin_successful() {
         LoginRequest loginRequest = new LoginRequest();

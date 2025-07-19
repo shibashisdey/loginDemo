@@ -81,7 +81,8 @@ public class AuthService {
 
         tokenRepository.save(verificationToken);
 
-        emailService.sendVerificationEmail(user.getEmail(), token);
+        emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
+
 
         return ResponseEntity.ok("User registered. Check your email to verify.");
     }
@@ -222,7 +223,8 @@ public class AuthService {
         }
         tokenRepository.save(verificationToken);
 
-        emailService.sendVerificationEmail(user.getEmail(), verificationToken.getToken());
+        emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken.getToken());
+
 
         return ResponseEntity.ok("Verification email resent. Please check your inbox.");
     }
